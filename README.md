@@ -9,6 +9,13 @@
 -   **Minimalist Design**: Clean interface focused on speed and usability.
 -   **Performance**: Optimized for fast startup and smooth scrolling.
 
+## Recommended Usage
+
+Glance is designed to be used as a quick-access overlay. For the best experience, we recommend binding the app to a **gesture shortcut** or a **hardware button**.
+
+-   **Gestures**: Use your device's native gesture settings or third-party gesture apps to launch Glance with a specific swipe (e.g., long swipe from the side).
+-   **Buttons**: Map it to an extra physical key or an accessibility shortcut for instant access without leaving your current app.
+
 ## Installation
 
 1.  Clone the repository:
