@@ -1,6 +1,6 @@
 # Glance
 
-**Glance** is a lightweight, efficient Android launcher designed to give you quick access to your applications. It features a sleek, alphabetical **Wave Side Bar** for fast scrolling and a powerful search function to find exactly what you need instantly.
+**Glance** is a lightweight, efficient utility app designed to give you quick access to your installed applications. It features a sleek, alphabetical **Wave Side Bar** for fast scrolling and a powerful search function to find exactly what you need instantly.
 
 ## Features
 
