@@ -1,0 +1,20 @@
+R_DEF: Internal format may change without notice
+local
+drawable ic_launcher_foreground
+drawable ic_settings
+drawable search_bg
+id appIcon
+id appName
+id appsRecyclerView
+id rootLayout
+id searchContainer
+id searchEditText
+id settingsButton
+id waveSideBar
+layout activity_main
+layout item_app
+string app_name
+style Theme.Glance
+style Theme.Glance.Transparent
+xml backup_rules
+xml data_extraction_rules
