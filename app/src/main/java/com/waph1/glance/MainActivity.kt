@@ -50,6 +50,19 @@ class MainActivity : AppCompatActivity() {
         setupUI()
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+
+        // Reset search query and view on home press
+        val searchEditText = findViewById<EditText>(R.id.searchEditText)
+        if (searchEditText != null && searchEditText.text.isNotEmpty()) {
+            searchEditText.setText("")
+        }
+        val recyclerView = findViewById<RecyclerView>(R.id.appsRecyclerView)
+        recyclerView?.scrollToPosition(0)
+    }
+
 
 
     private fun setupUI() {
