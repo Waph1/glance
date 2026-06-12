@@ -1,3 +1,0 @@
-com.example.samsungsearchshortcut.test
-style WhiteBackgroundDialogTheme
-style WhiteBackgroundTheme
