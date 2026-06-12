@@ -13,6 +13,21 @@ class AppAdapter(
 ) : RecyclerView.Adapter<AppAdapter.AppViewHolder>() {
 
     private var apps = listOf<AppInfo>()
+    var iconSizePercent: Int = 100
+        set(value) {
+            field = value
+            notifyDataSetChanged()
+        }
+    var favoriteApps: Set<String> = emptySet()
+        set(value) {
+            field = value
+            notifyDataSetChanged()
+        }
+    var showOnlyFavorites: Boolean = false
+        set(value) {
+            field = value
+            notifyDataSetChanged()
+        }
 
     fun submitList(newApps: List<AppInfo>) {
         apps = newApps
@@ -34,9 +49,33 @@ class AppAdapter(
     inner class AppViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val iconView: ImageView = itemView.findViewById(R.id.appIcon)
         private val nameView: TextView = itemView.findViewById(R.id.appName)
+        private val starView: ImageView = itemView.findViewById(R.id.appFavoriteStar)
 
         fun bind(app: AppInfo) {
-            iconView.setImageDrawable(app.icon)
+            val density = itemView.context.resources.displayMetrics.density
+            val lpIcon = iconView.layoutParams as ViewGroup.MarginLayoutParams
+            val lpName = nameView.layoutParams as ViewGroup.MarginLayoutParams
+
+            if (iconSizePercent <= 0) {
+                iconView.visibility = View.GONE
+                lpName.marginStart = 0
+            } else {
+                iconView.visibility = View.VISIBLE
+                iconView.setImageDrawable(app.icon)
+
+                val sizeDp = 48f * (iconSizePercent / 100f)
+                val sizePx = (sizeDp * density).toInt()
+                lpIcon.width = sizePx
+                lpIcon.height = sizePx
+                iconView.layoutParams = lpIcon
+
+                lpName.marginStart = (16 * density).toInt()
+            }
+            nameView.layoutParams = lpName
+
+            // Bind favorite star
+            starView.visibility = if (favoriteApps.contains(app.packageName) && !showOnlyFavorites) View.VISIBLE else View.GONE
+
             nameView.text = app.label
             itemView.setOnClickListener { onAppClick(app) }
             itemView.setOnLongClickListener {

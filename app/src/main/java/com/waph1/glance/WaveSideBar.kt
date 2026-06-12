@@ -51,6 +51,14 @@ class WaveSideBar @JvmOverloads constructor(
     private val intensitySpring = SpringAnimation(androidx.dynamicanimation.animation.FloatValueHolder(0f))
 
     var onLetterSelected: ((String) -> Unit)? = null
+    var onDoubleTap: (() -> Unit)? = null
+
+    private val gestureDetector = android.view.GestureDetector(context, object : android.view.GestureDetector.SimpleOnGestureListener() {
+        override fun onDoubleTap(e: MotionEvent): Boolean {
+            onDoubleTap?.invoke()
+            return true
+        }
+    })
 
     init {
         intensitySpring.spring = SpringForce(0f).apply {
@@ -123,6 +131,7 @@ class WaveSideBar @JvmOverloads constructor(
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        gestureDetector.onTouchEvent(event)
         when (event.action) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
                 // Only accept touches on the right side (e.g., last 200dp)
