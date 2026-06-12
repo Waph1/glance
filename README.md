@@ -15,7 +15,9 @@ Glance is a lightweight, efficient launcher utility designed to give you quick a
 - **Dynamic Scroll and Sidebar Control**: If the current list fits completely on the screen, scrolling and overscroll stretch animations are automatically disabled, and the sidebar fades out while remaining functional for the double-tap gesture.
 - **Startup Customization**: Configure Glance to display only favorite apps on startup.
 - **Gesture Control**: Toggle the double-tap gesture on the sidebar on or off in settings to prevent accidental triggers.
-- **Background Opacity**: Customize launcher background opacity.
+- **System Launcher Support**: Configurable as the default system Home Screen launcher.
+- **System Wallpaper Rendering**: Option to display the device's system wallpaper behind the launcher layout.
+- **Background Opacity & Dimming**: Customize launcher background opacity, allowing you to dim the system wallpaper to any level.
 
 ## Recommended Usage
 

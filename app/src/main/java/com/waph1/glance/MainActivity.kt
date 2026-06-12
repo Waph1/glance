@@ -21,6 +21,7 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintSet
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.activity.OnBackPressedCallback
 import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
@@ -34,6 +35,14 @@ class MainActivity : AppCompatActivity() {
     private var showOnlyFavorites: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val prefs = getSharedPreferences("settings", Context.MODE_PRIVATE)
+        val showWallpaper = prefs.getBoolean("show_wallpaper", false)
+        if (showWallpaper) {
+            setTheme(R.style.Theme_Glance_Wallpaper)
+        } else {
+            setTheme(R.style.Theme_Glance_Transparent)
+        }
+
         super.onCreate(savedInstanceState)
 
         // Initialize Custom Search UI
@@ -71,12 +80,27 @@ class MainActivity : AppCompatActivity() {
             showOpacityDialog()
         }
 
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (searchEditText.text.isNotEmpty()) {
+                    searchEditText.setText("")
+                } else if (isDefaultLauncher() || isLaunchedAsHome()) {
+                    // Do nothing in launcher mode to prevent finishing the activity
+                } else {
+                    isEnabled = false
+                    onBackPressedDispatcher.onBackPressed()
+                }
+            }
+        })
+
         adapter = AppAdapter(
             onAppClick = { app ->
                 val launchIntent = packageManager.getLaunchIntentForPackage(app.packageName)
                 if (launchIntent != null) {
                     startActivity(launchIntent)
-                    finish()
+                    if (!isDefaultLauncher() && !isLaunchedAsHome()) {
+                        finish()
+                    }
                 }
             },
             onAppLongClick = { app ->
@@ -257,6 +281,7 @@ class MainActivity : AppCompatActivity() {
         val currentShowOnlyHidden = prefs.getBoolean("show_only_hidden", false)
         val currentStartOnlyFavorites = prefs.getBoolean("start_only_favorites", false)
         val currentEnableDoubleTap = prefs.getBoolean("enable_double_tap", true)
+        val currentShowWallpaper = prefs.getBoolean("show_wallpaper", false)
 
         // Using a simple linear layout for the dialog content
         val container = android.widget.LinearLayout(this).apply {
@@ -341,17 +366,27 @@ class MainActivity : AppCompatActivity() {
             setPadding(0, 30, 0, 0)
         }
 
+        val showWallpaperSwitch = android.widget.Switch(this).apply {
+            text = "Show system wallpaper"
+            isChecked = currentShowWallpaper
+            setPadding(0, 30, 0, 0)
+        }
+
         container.addView(showSidebarSwitch)
         container.addView(hapticsSwitch)
         container.addView(searchBottomSwitch)
         container.addView(showOnlyHiddenSwitch)
         container.addView(startOnlyFavoritesSwitch)
         container.addView(enableDoubleTapSwitch)
+        container.addView(showWallpaperSwitch)
 
         val dialog = AlertDialog.Builder(this)
             .setTitle("Settings")
             .setView(container)
             .setPositiveButton("OK") { _, _ ->
+                val showWallpaperVal = showWallpaperSwitch.isChecked
+                val oldShowWallpaper = prefs.getBoolean("show_wallpaper", false)
+
                 prefs.edit()
                     .putInt("opacity", seekBar.progress)
                     .putBoolean("auto_keyboard", autoKeyboardSwitch.isChecked)
@@ -362,6 +397,7 @@ class MainActivity : AppCompatActivity() {
                     .putBoolean("show_only_hidden", showOnlyHiddenSwitch.isChecked)
                     .putBoolean("start_only_favorites", startOnlyFavoritesSwitch.isChecked)
                     .putBoolean("enable_double_tap", enableDoubleTapSwitch.isChecked)
+                    .putBoolean("show_wallpaper", showWallpaperVal)
                     .apply()
                 
                 // Apply settings immediately
@@ -374,6 +410,10 @@ class MainActivity : AppCompatActivity() {
                 val query = findViewById<EditText>(R.id.searchEditText)?.text?.toString() ?: ""
                 filterApps(query)
                 updateSidebarAndScrollState()
+
+                if (showWallpaperVal != oldShowWallpaper) {
+                    recreate()
+                }
             }
             .setNegativeButton("Cancel") { _, _ ->
                 // Revert to original if cancelled
@@ -594,5 +634,17 @@ class MainActivity : AppCompatActivity() {
                 0
             }
         }
+    }
+
+    private fun isDefaultLauncher(): Boolean {
+        val intent = Intent(Intent.ACTION_MAIN).apply {
+            addCategory(Intent.CATEGORY_HOME)
+        }
+        val resolveInfo = packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
+        return resolveInfo?.activityInfo?.packageName == packageName
+    }
+
+    private fun isLaunchedAsHome(): Boolean {
+        return intent?.hasCategory(Intent.CATEGORY_HOME) == true
     }
 }
