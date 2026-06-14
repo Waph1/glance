@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.1.1
+### Fixed
+- Fixed system reboot crash loop when Glance was set as the default launcher.
+- Removed window translucency configuration (set android:windowIsTranslucent to false) to prevent other launchers (like One UI Home) from running or showing in the background, improving stability, performance, and battery life.
+
 ## v1.1
 ### Added
 - Added automatic settings Backup system. You can choose a backup directory to automatically save your settings, hidden apps, and favorite apps into a human-readable `glance_backup.json` file whenever changes occur.

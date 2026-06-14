@@ -44,7 +44,7 @@ class MainActivity : AppCompatActivity() {
         if (showWallpaper) {
             setTheme(R.style.Theme_Glance_Wallpaper)
         } else {
-            setTheme(R.style.Theme_Glance_Transparent)
+            setTheme(R.style.Theme_Glance_Solid)
         }
 
         super.onCreate(savedInstanceState)
