@@ -61,6 +61,12 @@ class MainActivity : AppCompatActivity() {
         }
         val recyclerView = findViewById<RecyclerView>(R.id.appsRecyclerView)
         recyclerView?.scrollToPosition(0)
+
+        val prefs = getSharedPreferences("settings", Context.MODE_PRIVATE)
+        val autoKeyboard = prefs.getBoolean("auto_keyboard", false)
+        if (!autoKeyboard) {
+            clearSearchFocusAndHideKeyboard()
+        }
     }
 
 
@@ -110,6 +116,7 @@ class MainActivity : AppCompatActivity() {
             onAppClick = { app ->
                 val launchIntent = packageManager.getLaunchIntentForPackage(app.packageName)
                 if (launchIntent != null) {
+                    clearSearchFocusAndHideKeyboard()
                     startActivity(launchIntent)
                     if (!isDefaultLauncher() && !isLaunchedAsHome()) {
                         finish()
@@ -215,14 +222,7 @@ class MainActivity : AppCompatActivity() {
             override fun afterTextChanged(s: Editable?) {}
         })
         
-        // Focus search bar automatically ONLY if enabled
-        val autoKeyboard = prefs.getBoolean("auto_keyboard", false) // Default false
-        if (autoKeyboard) {
-            searchEditText.requestFocus()
-            // Show keyboard explicitly might be needed
-            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
-            imm.showSoftInput(searchEditText, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
-        }
+        // Auto-focus logic moved to onResume to cover returns to launcher
     }
 
     private fun showHideAppDialog(app: AppInfo, currentQuery: String) {
@@ -659,5 +659,38 @@ class MainActivity : AppCompatActivity() {
 
     private fun isLaunchedAsHome(): Boolean {
         return intent?.hasCategory(Intent.CATEGORY_HOME) == true
+    }
+
+    private fun clearSearchFocusAndHideKeyboard() {
+        val searchEditText = findViewById<EditText>(R.id.searchEditText) ?: return
+        searchEditText.clearFocus()
+        if (::rootLayout.isInitialized) {
+            rootLayout.requestFocus()
+        }
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+        imm.hideSoftInputFromWindow(searchEditText.windowToken, 0)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val prefs = getSharedPreferences("settings", Context.MODE_PRIVATE)
+        val autoKeyboard = prefs.getBoolean("auto_keyboard", false)
+        val searchEditText = findViewById<EditText>(R.id.searchEditText)
+        if (searchEditText != null) {
+            if (autoKeyboard) {
+                searchEditText.requestFocus()
+                val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+                searchEditText.post {
+                    imm.showSoftInput(searchEditText, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+                }
+            } else {
+                clearSearchFocusAndHideKeyboard()
+            }
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        clearSearchFocusAndHideKeyboard()
     }
 }

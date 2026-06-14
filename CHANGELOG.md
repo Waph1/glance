@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.0.1
+### Fixed
+- Fixed bug where the keyboard automatically opened on returning to the home screen after a search. Focus is now cleared and keyboard is hidden properly.
+- Hid soft keyboard when starting an external application.
+
 ## v1.0
 This major release transforms Glance from a standalone overlay drawer utility into a fully functional system Home Screen launcher.
 
