@@ -15,6 +15,7 @@ import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.SeekBar
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
@@ -23,6 +24,9 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.activity.OnBackPressedCallback
 import java.util.Locale
+import org.json.JSONObject
+import org.json.JSONArray
+import androidx.documentfile.provider.DocumentFile
 
 class MainActivity : AppCompatActivity() {
 
@@ -258,6 +262,7 @@ class MainActivity : AppCompatActivity() {
                             .edit()
                             .putStringSet("hidden_apps", hiddenApps)
                             .apply()
+                        triggerBackup()
                         
                         // Refresh list
                         filterApps(currentQuery)
@@ -274,6 +279,7 @@ class MainActivity : AppCompatActivity() {
                             .edit()
                             .putStringSet("favorite_apps", favoriteApps)
                             .apply()
+                        triggerBackup()
                         
                         // Refresh adapter
                         adapter.favoriteApps = favoriteApps
@@ -301,6 +307,8 @@ class MainActivity : AppCompatActivity() {
             orientation = android.widget.LinearLayout.VERTICAL
             setPadding(50, 50, 50, 50)
         }
+
+        var settingsDialog: AlertDialog? = null
         
         val label = TextView(this).apply {
             text = "Background Opacity"
@@ -393,7 +401,59 @@ class MainActivity : AppCompatActivity() {
         container.addView(enableDoubleTapSwitch)
         container.addView(showWallpaperSwitch)
 
-        val dialog = AlertDialog.Builder(this)
+        // Separator
+        val separator = View(this).apply {
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                (1 * resources.displayMetrics.density).toInt()
+            ).apply {
+                setMargins(0, 50, 0, 50)
+            }
+            setBackgroundColor(Color.LTGRAY)
+        }
+        container.addView(separator)
+
+        val backupHeader = TextView(this).apply {
+            text = "Backup & Restore"
+            textSize = 18f
+            setTypeface(null, android.graphics.Typeface.BOLD)
+            setPadding(0, 0, 0, 20)
+        }
+        container.addView(backupHeader)
+
+        val backupDirUri = prefs.getString("backup_directory_uri", null)
+        val backupDirText = if (backupDirUri != null) {
+            val uri = Uri.parse(backupDirUri)
+            uri.lastPathSegment ?: "Selected Folder"
+        } else {
+            "Not selected"
+        }
+
+        val selectFolderButton = android.widget.Button(this).apply {
+            text = "Backup Folder: $backupDirText"
+            setOnClickListener {
+                settingsDialog?.dismiss()
+                val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+                startActivityForResult(intent, REQUEST_CODE_BACKUP_DIR)
+            }
+        }
+        container.addView(selectFolderButton)
+
+        val restoreButton = android.widget.Button(this).apply {
+            text = "Restore Backup"
+            isEnabled = true
+            setOnClickListener {
+                settingsDialog?.dismiss()
+                val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = "application/json"
+                }
+                startActivityForResult(intent, REQUEST_CODE_RESTORE_FILE)
+            }
+        }
+        container.addView(restoreButton)
+
+        settingsDialog = AlertDialog.Builder(this)
             .setTitle("Settings")
             .setView(container)
             .setPositiveButton("OK") { _, _ ->
@@ -412,6 +472,8 @@ class MainActivity : AppCompatActivity() {
                     .putBoolean("enable_double_tap", enableDoubleTapSwitch.isChecked)
                     .putBoolean("show_wallpaper", showWallpaperVal)
                     .apply()
+                
+                triggerBackup()
                 
                 // Apply settings immediately
                 val waveSideBar = findViewById<WaveSideBar>(R.id.waveSideBar)
@@ -442,7 +504,7 @@ class MainActivity : AppCompatActivity() {
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
 
-        dialog.show()
+        settingsDialog.show()
     }
 
     private fun updateBackgroundOpacity(alpha: Int) {
@@ -692,5 +754,173 @@ class MainActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         clearSearchFocusAndHideKeyboard()
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_CODE_BACKUP_DIR && resultCode == RESULT_OK) {
+            val uri = data?.data ?: return
+            try {
+                contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
+                getSharedPreferences("settings", Context.MODE_PRIVATE)
+                    .edit()
+                    .putString("backup_directory_uri", uri.toString())
+                    .apply()
+                
+                Toast.makeText(this, "Backup folder selected!", Toast.LENGTH_SHORT).show()
+                triggerBackup()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Toast.makeText(this, "Failed to persist folder permissions", Toast.LENGTH_LONG).show()
+            }
+        } else if (requestCode == REQUEST_CODE_RESTORE_FILE && resultCode == RESULT_OK) {
+            val uri = data?.data ?: return
+            triggerRestoreFromFile(uri)
+        }
+    }
+
+    private fun triggerBackup() {
+        val prefs = getSharedPreferences("settings", Context.MODE_PRIVATE)
+        val uriString = prefs.getString("backup_directory_uri", null) ?: return
+        
+        Thread {
+            try {
+                val uri = Uri.parse(uriString)
+                val docDir = DocumentFile.fromTreeUri(this, uri)
+                if (docDir == null || !docDir.exists() || !docDir.canWrite()) {
+                    throw Exception("Directory not accessible or writable")
+                }
+                
+                var backupFile = docDir.findFile("glance_backup.json")
+                if (backupFile == null) {
+                    backupFile = docDir.createFile("application/json", "glance_backup.json")
+                }
+                
+                if (backupFile != null) {
+                    val json = JSONObject().apply {
+                        val settingsObj = JSONObject().apply {
+                            put("opacity", prefs.getInt("opacity", 128))
+                            put("auto_keyboard", prefs.getBoolean("auto_keyboard", false))
+                            put("show_sidebar", prefs.getBoolean("show_sidebar", true))
+                            put("sidebar_haptics", prefs.getBoolean("sidebar_haptics", true))
+                            put("search_bottom", prefs.getBoolean("search_bottom", false))
+                            put("icon_size", prefs.getInt("icon_size", 100))
+                            put("show_only_hidden", prefs.getBoolean("show_only_hidden", false))
+                            put("start_only_favorites", prefs.getBoolean("start_only_favorites", false))
+                            put("enable_double_tap", prefs.getBoolean("enable_double_tap", true))
+                            put("show_wallpaper", prefs.getBoolean("show_wallpaper", false))
+                            put("backup_directory_uri", uriString)
+                        }
+                        put("settings", settingsObj)
+                        
+                        val hiddenAppsSet = prefs.getStringSet("hidden_apps", emptySet()) ?: emptySet()
+                        put("hidden_apps", JSONArray(hiddenAppsSet.toList()))
+                        
+                        val favoriteAppsSet = prefs.getStringSet("favorite_apps", emptySet()) ?: emptySet()
+                        put("favorite_apps", JSONArray(favoriteAppsSet.toList()))
+                    }
+                    
+                    contentResolver.openOutputStream(backupFile.uri)?.use { outputStream ->
+                        outputStream.write(json.toString(4).toByteArray())
+                    }
+                } else {
+                    throw Exception("Failed to create backup file")
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                prefs.edit().remove("backup_directory_uri").apply()
+                runOnUiThread {
+                    Toast.makeText(this, "Backup failed: directory invalid or inaccessible. Please select another folder.", Toast.LENGTH_LONG).show()
+                }
+            }
+        }.start()
+    }
+
+    private fun triggerRestoreFromFile(fileUri: Uri) {
+        val prefs = getSharedPreferences("settings", Context.MODE_PRIVATE)
+        try {
+            val content = contentResolver.openInputStream(fileUri)?.use { inputStream ->
+                inputStream.bufferedReader().use { it.readText() }
+            } ?: throw Exception("Failed to read file content")
+            
+            val json = JSONObject(content)
+            val edit = prefs.edit()
+            
+            if (json.has("settings")) {
+                val settingsObj = json.getJSONObject("settings")
+                val keys = settingsObj.keys()
+                while (keys.hasNext()) {
+                    val key = keys.next()
+                    when (val value = settingsObj.get(key)) {
+                        is Boolean -> edit.putBoolean(key, value)
+                        is Int -> edit.putInt(key, value)
+                        is String -> edit.putString(key, value)
+                    }
+                }
+            }
+            
+            if (json.has("hidden_apps")) {
+                val arr = json.getJSONArray("hidden_apps")
+                val hiddenSet = mutableSetOf<String>()
+                for (i in 0 until arr.length()) {
+                    hiddenSet.add(arr.getString(i))
+                }
+                edit.putStringSet("hidden_apps", hiddenSet)
+                hiddenApps = hiddenSet
+            }
+            
+            if (json.has("favorite_apps")) {
+                val arr = json.getJSONArray("favorite_apps")
+                val favSet = mutableSetOf<String>()
+                for (i in 0 until arr.length()) {
+                    favSet.add(arr.getString(i))
+                }
+                edit.putStringSet("favorite_apps", favSet)
+                favoriteApps = favSet
+            }
+            
+            edit.apply()
+
+            val restoredBackupUriString = prefs.getString("backup_directory_uri", null)
+            if (restoredBackupUriString != null) {
+                try {
+                    val restoredUri = Uri.parse(restoredBackupUriString)
+                    var hasPermission = false
+                    val persistedPermissions = contentResolver.persistedUriPermissions
+                    for (perm in persistedPermissions) {
+                        if (perm.uri == restoredUri && perm.isWritePermission) {
+                            hasPermission = true
+                            break
+                        }
+                    }
+                    
+                    if (!hasPermission) {
+                        prefs.edit().remove("backup_directory_uri").apply()
+                        Toast.makeText(this, "Restored settings! Please select your backup folder again to enable automatic backups.", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(this, "Backup restored successfully!", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    prefs.edit().remove("backup_directory_uri").apply()
+                    Toast.makeText(this, "Restored settings! Please select your backup folder again to enable automatic backups.", Toast.LENGTH_LONG).show()
+                }
+            } else {
+                Toast.makeText(this, "Backup restored successfully!", Toast.LENGTH_SHORT).show()
+            }
+            
+            recreate()
+            
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(this, "Error restoring backup: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    companion object {
+        private const val REQUEST_CODE_BACKUP_DIR = 1001
+        private const val REQUEST_CODE_RESTORE_FILE = 1002
     }
 }

@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.1
+### Added
+- Added automatic settings Backup system. You can choose a backup directory to automatically save your settings, hidden apps, and favorite apps into a human-readable `glance_backup.json` file whenever changes occur.
+- Added manual Restore function, letting you pick a backup file from the system document picker to restore settings even on a fresh install.
+- Restores backup folder path and handles invalid/inaccessible directories with helpful warnings.
+
 ## v1.0.1
 ### Fixed
 - Fixed bug where the keyboard automatically opened on returning to the home screen after a search. Focus is now cleared and keyboard is hidden properly.
