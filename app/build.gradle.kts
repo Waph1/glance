@@ -11,8 +11,8 @@ android {
         applicationId = "com.waph1.glance"
         minSdk = 24
         targetSdk = 34
-        versionCode = 5
-        versionName = "1.1.1"
+        versionCode = 6
+        versionName = "1.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -24,6 +24,22 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+    }
+
+    flavorDimensions += "type"
+    productFlavors {
+        create("launcher") {
+            dimension = "type"
+            applicationId = "com.waph1.glance"
+            manifestPlaceholders["homeCategory"] = "android.intent.category.HOME"
+            manifestPlaceholders["appName"] = "Glance"
+        }
+        create("drawer") {
+            dimension = "type"
+            applicationId = "com.waph1.glance.drawer"
+            manifestPlaceholders["homeCategory"] = "android.intent.category.DEFAULT"
+            manifestPlaceholders["appName"] = "Glance Drawer"
         }
     }
     compileOptions {

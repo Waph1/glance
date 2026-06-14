@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.2
+### Added
+- Created Product Flavors: `launcher` and `drawer` builds.
+- **Glance Launcher** (`com.waph1.glance`): behaves as the system default home launcher screen.
+- **Glance Drawer** (`com.waph1.glance.drawer`): behaves as a standard application. It can be installed alongside the launcher version and launched via gestures, shortcuts, or in multi-window mode without resetting your launcher session.
+
 ## v1.1.1
 ### Fixed
 - Fixed system reboot crash loop when Glance was set as the default launcher.
